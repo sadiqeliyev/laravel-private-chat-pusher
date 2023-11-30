@@ -40,43 +40,54 @@
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
     <script>
-        const pusher = new Pusher('{{ config('broadcasting.connections.pusher.key') }}', {
+        const pusher = new Pusher("{{ config('broadcasting.connections.pusher.key') }}", {
             cluster: 'mt1'
         });
         const channel = pusher.subscribe('public');
 
-        //Receive messages
+        // receive message
+
         channel.bind('chat', function(data) {
-            $.post("/receive", {
-                    _token: '{{ csrf_token() }}',
-                    message: data.message,
+            fetch('/receive', {
+                    method: 'post',
+                    headers: {
+                        'accept': 'application/json',
+                        'content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        '_token': "{{ csrf_token() }}",
+                        message: data.message
+                    })
                 })
-                .done(function(res) {
-                    $(".messages > .message").last().after(res);
-                    $(document).scrollTop($(document).height());
-                });
+                .then(res => res.text())
+                .then(data => {
+                    Array.from(document.querySelectorAll('.messages > .message')).at(-1).insertAdjacentHTML(
+                        'beforeend',
+                        data);
+                })
         });
 
-        //Broadcast messages
-        $("form").submit(function(event) {
+        document.querySelector('form').addEventListener('submit', function(event) {
             event.preventDefault();
-
-            $.ajax({
-                url: "/broadcast",
-                method: 'POST',
-                headers: {
-                    'X-Socket-Id': pusher.connection.socket_id
-                },
-                data: {
-                    _token: '{{ csrf_token() }}',
-                    message: $("form #message").val(),
-                }
-            }).done(function(res) {
-                $(".messages > .message").last().after(res);
-                $("form #message").val('');
-                $(document).scrollTop($(document).height());
-            });
-        });
+            fetch('/broadcast', {
+                    method: 'post',
+                    headers: {
+                        'accept': 'application/json',
+                        'content-type': 'application/json',
+                        'X-Socket-Id': pusher.connection.socket_id
+                    },
+                    body: JSON.stringify({
+                        '_token': "{{ csrf_token() }}",
+                        message: document.querySelector('#message').value
+                    })
+                })
+                .then(res => res.text())
+                .then(data => {
+                    Array.from(document.querySelectorAll('.messages > .message')).at(-1).insertAdjacentHTML(
+                        'beforeend', data);
+                    document.querySelector('#message').value = '';
+                });
+        })
     </script>
 </body>
 
