@@ -18,6 +18,8 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
+        'firstname',
+        'lastname',
         'name',
         'email',
         'password',
@@ -42,4 +44,34 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    public function fullname(): string
+    {
+        return "$this->firstname $this->lastname";
+    }
+
+    public function chat_session_id($id)
+    {
+        return Session::query()
+            ->where(function ($query) use ($id) {
+                $query->where('user_1_id', auth()->id())
+                    ->where('user_2_id', $id);
+            })
+            ->orWhere(function ($query) use ($id) {
+                $query->where('user_1_id', $id)
+                    ->where('user_2_id', auth()->id());
+            })
+            ->first()->id;;
+    }
+
+    public static function otherUsers()
+    {
+        $instance = new User();
+        return $instance->where('id', '!=', auth()->id())->get();
+    }
+
+    public function messages($session_id)
+    {
+        return Chat::where(['session_id' => $session_id])->get();
+    }
 }
